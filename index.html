@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerFlow | Pro Career Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <!-- React and Babel via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const COLUMNS = [
+            { id: 'todo', title: 'To Research', icon: 'clipboard-list' },
+            { id: 'applied', title: 'Applied', icon: 'send' },
+            { id: 'interview', title: 'Interviewing', icon: 'users' },
+            { id: 'onhold', title: 'On Hold', icon: 'pause-circle' },
+            { id: 'done', title: 'Hired / Finished', icon: 'check-circle' }
+        ];
+
+        const PLATFORMS = ['LinkedIn', 'Indeed', 'Naukri', 'Glassdoor', 'Company Portal', 'Wellfound', 'Other'];
+        const SOURCES = ['Cold Apply', 'Referral', 'Recruiter Outreach', 'Job Board', 'In-person', 'Other'];
+
+        const App = () => {
+            const [jobs, setJobs] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('careerflow_jobs_v3');
+                    return saved ? JSON.parse(saved) : [];
+                } catch (e) {
+                    return [];
+                }
+            });
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [viewJobDetails, setViewJobDetails] = useState(null);
+            const [jobToDelete, setJobToDelete] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [viewMode, setViewMode] = useState('board'); // 'board', 'archive', or 'stats'
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            const [isDragging, setIsDragging] = useState(false);
+            const [theme, setTheme] = useState(() => localStorage.getItem('careerflow_theme') || 'light');
+            const [toasts, setToasts] = useState([]);
+
+            const [newJob, setNewJob] = useState({
+                company: '', title: '', platform: 'LinkedIn', source: 'Cold Apply',
+                hrEmail: '', jobUrl: '', salary: '', reminderDate: '',
+                resumeName: '', resumeData: '', date: new Date().toLocaleDateString(),
+                status: 'todo', notes: '', archived: false, history: []
+            });
+
+            // Filter jobs based on active tab and search
+            const displayJobs = jobs.filter(job => {
+                if (viewMode === 'board') return !job.archived;
+                if (viewMode === 'archive') return job.archived;
+                return true;
+            });
+
+            const filteredJobs = displayJobs.filter(job => {
+                const s = searchTerm.toLowerCase();
+                return (
+                    job.company.toLowerCase().includes(s) ||
+                    job.title.toLowerCase().includes(s) ||
+                    job.platform.toLowerCase().includes(s) ||
+                    (job.hrEmail && job.hrEmail.toLowerCase().includes(s)) ||
+                    job.date.toLowerCase().includes(s)
+                );
+            });
+
+            useEffect(() => {
+                localStorage.setItem('careerflow_jobs_v3', JSON.stringify(jobs));
+                localStorage.setItem('careerflow_theme', theme);
+                document.documentElement.setAttribute('data-theme', theme);
+
+                // Use a small delay to ensure React has finished rendering the modal/DOM
+                const timer = setTimeout(() => {
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                }, 10);
+
+                return () => clearTimeout(timer);
+            }, [jobs, showAddModal, viewJobDetails, jobToDelete, searchTerm, viewMode, theme, toasts]);
+
+            const showToast = (message, type = 'success', icon = 'check-circle') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, message, type, icon }]);
+                setTimeout(() => {
+                    setToasts(prev => prev.map(t => t.id === id ? { ...t, hiding: true } : t));
+                    setTimeout(() => {
+                        setToasts(prev => prev.filter(t => t.id !== id));
+                    }, 300);
+                }, 3000);
+            };
+
+            const toggleTheme = () => {
+                setTheme(prev => prev === 'light' ? 'dark' : 'light');
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    setNewJob(prev => ({ ...prev, resumeName: file.name, resumeData: event.target.result }));
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const addJob = (e) => {
+                e.preventDefault();
+                setJobs(prev => [...prev, { ...newJob, id: Date.now() }]);
+                setShowAddModal(false);
+                setNewJob({ company: '', title: '', platform: 'LinkedIn', source: 'Cold Apply', hrEmail: '', jobUrl: '', salary: '', reminderDate: '', resumeName: '', resumeData: '', date: new Date().toLocaleDateString(), status: 'todo', notes: '', archived: false, history: [] });
+            };
+
+            const toggleArchiveJob = (id, e) => {
+                if (e) e.stopPropagation();
+                let jobName = "";
+                setJobs(prev => prev.map(j => {
+                    if (j.id === id) {
+                        jobName = j.company;
+                        const isArchiving = !j.archived;
+                        showToast(isArchiving ? `Archived ${j.company}` : `Restored ${j.company}`, isArchiving ? 'warning' : 'success', isArchiving ? 'archive' : 'rotate-ccw');
+                        return { ...j, archived: isArchiving };
+                    }
+                    return j;
+                }));
+                if (viewJobDetails && viewJobDetails.id === id) setViewJobDetails(prev => ({ ...prev, archived: !prev.archived }));
+            };
+
+            const executeDelete = () => {
+                if (!jobToDelete) return;
+                showToast(`Deleted ${jobToDelete.company} application`, 'danger', 'trash-2');
+                setJobs(prev => prev.filter(j => j.id !== jobToDelete.id));
+                setJobToDelete(null);
+                if (viewJobDetails && viewJobDetails.id === jobToDelete.id) setViewJobDetails(null);
+            };
+
+            const downloadResume = (data, name) => {
+                const link = document.createElement('a');
+                link.href = data;
+                link.download = name;
+                link.click();
+            };
+
+            const onDragOver = (e) => e.preventDefault();
+            const onDragStart = (e, id) => {
+                e.dataTransfer.setData("jobId", id);
+                setIsDragging(true);
+            };
+            const onDragEnd = () => setIsDragging(false);
+
+            const updateJobStatus = (id, newStatus) => {
+                setJobs(prev => prev.map(j => {
+                    if (j.id.toString() === id.toString()) {
+                        const history = j.history || [];
+                        const updatedHistory = [...history, { from: j.status, to: newStatus, date: new Date().toISOString() }];
+
+                        // Fire celebration if moved to Hired/Finished
+                        if (newStatus === 'done' && j.status !== 'done') {
+                            confetti({
+                                particleCount: 150,
+                                spread: 70,
+                                origin: { y: 0.6 },
+                                colors: ['#4f46e5', '#10b981', '#f59e0b']
+                            });
+                        }
+
+                        return { ...j, status: newStatus, history: updatedHistory };
+                    }
+                    return j;
+                }));
+            };
+
+            const onDrop = (e, status) => {
+                setIsDragging(false);
+                const id = e.dataTransfer.getData("jobId");
+                updateJobStatus(id, status);
+            };
+
+            return (
+                <div className={`app-container ${mobileMenuOpen ? 'menu-open' : ''}`}>
+                    {/* Overlay for mobile menu */}
+                    {mobileMenuOpen && <div className="menu-overlay" onClick={() => setMobileMenuOpen(false)}></div>}
+
+                    <aside className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
+                        <div className="sidebar-logo"><i data-lucide="layout" size="28"></i>CareerFlow</div>
+
+                        <div className="nav-group">
+                            <span className="nav-label">Menu</span>
+                            <div className={`nav-item ${viewMode === 'board' ? 'active' : ''}`} onClick={() => setViewMode('board')}><i data-lucide="layout-dashboard" size="18"></i> Dashboard</div>
+                            <div className={`nav-item ${viewMode === 'stats' ? 'active' : ''}`} onClick={() => setViewMode('stats')}><i data-lucide="bar-chart-2" size="18"></i> Analytics</div>
+                            <div className={`nav-item ${viewMode === 'archive' ? 'active' : ''}`} onClick={() => setViewMode('archive')}><i data-lucide="archive" size="18"></i> Archive</div>
+                        </div>
+
+                        <div className="nav-group">
+                            <span className="nav-label">Settings</span>
+                            <div className="theme-switch-wrapper" onClick={toggleTheme}>
+                                <i data-lucide={theme === 'light' ? 'moon' : 'sun'} size="18"></i>
+                                {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+                            </div>
+                        </div>
+
+                        <div className="nav-group" style={{ marginTop: 'auto' }}>
+                            <div className="stat-pill" style={{ padding: '1.2rem', background: 'var(--accent-light)', borderRadius: 'var(--radius-lg)' }}>
+                                <div style={{ fontSize: '0.70rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', opacity: 0.8 }}>Velocity</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent)', margin: '0.2rem 0' }}>{Math.round(jobs.length / 7) || 0} / wk</div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <main className="main-content">
+                        <header className="top-bar">
+                            <div className="menu-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                                <i data-lucide="menu" size="24"></i>
+                            </div>
+                            <div className="search-box">
+                                <i data-lucide="search" size="18"></i>
+                                <input placeholder="Search company, role, platform..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                {searchTerm && (
+                                    <button
+                                        className="search-clear-btn"
+                                        onClick={() => setSearchTerm('')}
+                                        title="Clear search"
+                                    >
+                                        <i data-lucide="x" size="14"></i>
+                                    </button>
+                                )}
+                            </div>
+                        </header>
+
+                        {viewMode === 'stats' ? (
+                            <div className="canvas" style={{ flexDirection: 'column', gap: '2rem' }}>
+                                <div className="stats-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-card-label">Total Applications</div>
+                                        <div className="stat-card-value">{jobs.length}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-card-label">Interviews</div>
+                                        <div className="stat-card-value font-outfit">{jobs.filter(j => j.status === 'interview').length}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-card-label">Hire Rate</div>
+                                        <div className="stat-card-value">{jobs.length ? Math.round((jobs.filter(j => j.status === 'done').length / jobs.length) * 100) : 0}%</div>
+                                    </div>
+                                </div>
+                                <div className="chart-container">
+                                    <h3 style={{ marginBottom: '1.5rem', fontFamily: 'Outfit' }}>Application Distribution</h3>
+                                    <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                        <i data-lucide="pie-chart" size="48"></i>
+                                        <p style={{ marginLeft: '1rem' }}>Analytics Engine Active.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="canvas">
+                                {COLUMNS.map(col => (
+                                    <div key={col.id} className="board-column">
+                                        <div className="column-header">
+                                            <h3><i data-lucide={col.icon} size="18"></i> {col.title}</h3>
+                                            <span className="count-badge">{filteredJobs.filter(j => j.status === col.id).length}</span>
+                                        </div>
+                                        <div className="column-drop-zone" onDragOver={onDragOver} onDrop={(e) => onDrop(e, col.id)}>
+                                            {filteredJobs.filter(j => j.status === col.id).map(job => (
+                                                <div
+                                                    key={job.id}
+                                                    className={`card ${job.status === 'done' ? 'card-disabled' : ''}`}
+                                                    draggable
+                                                    onDragStart={(e) => onDragStart(e, job.id)}
+                                                    onDragEnd={onDragEnd}
+                                                    onClick={() => job.status !== 'done' && setViewJobDetails(job)}
+                                                >
+                                                    <div className="card-company-group">
+                                                        <div className="company-logo-circle">
+                                                            <img src={`https://logo.clearbit.com/${job.company.toLowerCase().replace(/\s/g, '')}.com?size=64`} onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=" + job.company} />
+                                                        </div>
+                                                        <span className="card-company">{job.company}</span>
+                                                    </div>
+                                                    <h4 className="card-title">{job.title}</h4>
+
+                                                    <div className="extra-pills-row">
+                                                        {job.salary && <span className="extra-pill pill-salary"><i data-lucide="dollar-sign" size="10"></i> {job.salary}</span>}
+                                                        {job.reminderDate && <span className={`extra-pill pill-reminder ${new Date(job.reminderDate) <= new Date() ? 'urgent' : ''}`}><i data-lucide="bell" size="10"></i> Follow up</span>}
+                                                    </div>
+
+                                                    <div className="card-tags">
+                                                        <span className="tag">{job.platform}</span>
+                                                        <span className="tag">{job.source}</span>
+                                                    </div>
+                                                    <div className="card-footer">
+                                                        <span>{job.date}</span>
+                                                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                            {job.jobUrl && <a href={job.jobUrl} target="_blank" onClick={e => e.stopPropagation()} className="action-icon-btn" title="Open Posting"><i data-lucide="external-link" size="14"></i></a>}
+                                                            <button className="action-icon-btn archive" title={job.archived ? "Restore" : "Archive"} onClick={(e) => toggleArchiveJob(job.id, e)}><i data-lucide={job.archived ? "rotate-ccw" : "archive"} size="14"></i></button>
+                                                            <button className="action-icon-btn delete" title="Delete" onClick={(e) => { e.stopPropagation(); setJobToDelete(job); }}><i data-lucide="trash-2" size="14"></i></button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+
+                    <div className={`drop-actions-bar ${isDragging ? 'active' : ''}`}>
+                        <div className="drop-zone-btn archive" onDragOver={onDragOver} onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("jobId"); toggleArchiveJob(parseInt(id)); setIsDragging(false); }}><i data-lucide="archive" size="20"></i> Archive Card</div>
+                        <div className="drop-zone-btn delete" onDragOver={onDragOver} onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("jobId"); const job = jobs.find(j => j.id.toString() === id); if (job) setJobToDelete(job); setIsDragging(false); }}><i data-lucide="trash-2" size="20"></i> Drop to Delete</div>
+                    </div>
+
+                    {viewMode === 'board' && (
+                        <div className="add-job-btn" onClick={() => setShowAddModal(true)}><i data-lucide="plus" size="28"></i></div>
+                    )}
+
+                    {/* Modals */}
+                    {showAddModal && (
+                        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+                            <div className="modal" style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.75rem', color: 'var(--text-primary)' }}>New Application</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Track your career progress by adding a new job application.</p>
+                                </div>
+
+                                <form onSubmit={addJob}>
+                                    <div className="form-section" style={{ marginTop: 0 }}>
+                                        <div className="form-section-title">Basic Information</div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Company</label>
+                                                <input required placeholder="e.g. Google, Microsoft" value={newJob.company} onChange={e => setNewJob({ ...newJob, company: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Job Role</label>
+                                                <input required placeholder="e.g. Senior Frontend Dev" value={newJob.title} onChange={e => setNewJob({ ...newJob, title: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-section">
+                                        <div className="form-section-title">Application Details</div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Platform</label>
+                                                <select value={newJob.platform} onChange={e => setNewJob({ ...newJob, platform: e.target.value })}>
+                                                    {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Job URL</label>
+                                                <input type="url" placeholder="Paste link to posting" value={newJob.jobUrl} onChange={e => setNewJob({ ...newJob, jobUrl: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row" style={{ marginTop: '1.5rem' }}>
+                                            <div className="form-group">
+                                                <label>Salary Expectation (LPA)</label>
+                                                <input placeholder="e.g. 18-24 LPA" value={newJob.salary} onChange={e => setNewJob({ ...newJob, salary: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Follow-up Reminder</label>
+                                                <input type="date" value={newJob.reminderDate} onChange={e => setNewJob({ ...newJob, reminderDate: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-section">
+                                        <div className="form-section-title">Contacts & Notes</div>
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>HR Email / Point of Contact</label>
+                                            <input type="email" placeholder="hr@company.com or LinkedIn URL" value={newJob.hrEmail} onChange={e => setNewJob({ ...newJob, hrEmail: e.target.value })} />
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>Notes</label>
+                                            <textarea rows="3" placeholder="Add details about interview stages, referral name, etc." value={newJob.notes} onChange={e => setNewJob({ ...newJob, notes: e.target.value })}></textarea>
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: '2rem' }}>
+                                            <label>Resume (Optional)</label>
+                                            <div className="file-input-wrapper">
+                                                <input type="file" onChange={handleFileUpload} />
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <i data-lucide="upload-cloud" className="lucide lucide-upload-cloud" size="32" color="var(--accent)" style={{ marginBottom: '0.5rem' }}></i>
+                                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{newJob.resumeName || 'Drop your resume here'}</h4>
+                                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PDF, DOCX up to 5MB</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                                        <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Discard</button>
+                                        <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2.5rem' }}>Create Opportunity</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {viewJobDetails && (
+                        <div className="modal-overlay" onClick={() => setViewJobDetails(null)}>
+                            <div className="modal" style={{ width: '650px' }} onClick={e => e.stopPropagation()}>
+                                <div className="modal-header-detail">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+                                            <div className="company-logo-circle" style={{ width: '56px', height: '56px' }}>
+                                                <img src={`https://logo.clearbit.com/${viewJobDetails.company.toLowerCase().replace(/\s/g, '')}.com?size=128`} onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=" + viewJobDetails.company} />
+                                            </div>
+                                            <div>
+                                                <span className="detail-label" style={{ color: 'var(--accent)', fontWeight: 800 }}>{viewJobDetails.company}</span>
+                                                <h2 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.8rem', lineHeight: 1.2 }}>{viewJobDetails.title}</h2>
+                                            </div>
+                                        </div>
+                                        <div></div>
+                                    </div>
+                                </div>
+
+                                <div className="form-section" style={{ marginTop: 0 }}>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <span className="detail-label">HR Contact</span>
+                                            <div className="detail-value">{viewJobDetails.hrEmail || 'Not provided'}</div>
+                                        </div>
+                                        <div className="form-group">
+                                            <span className="detail-label">Salary / Bundle</span>
+                                            <div className="detail-value">{viewJobDetails.salary || 'N/A'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="form-row" style={{ marginTop: '1.5rem' }}>
+                                        <div className="form-group">
+                                            <span className="detail-label">Next Step Reminder</span>
+                                            <div className="detail-value" style={{ color: viewJobDetails.reminderDate && new Date(viewJobDetails.reminderDate) <= new Date() ? 'var(--danger)' : 'inherit' }}>
+                                                {viewJobDetails.reminderDate || 'No reminder set'}
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <span className="detail-label">Current Stage</span>
+                                            <div className="detail-value" style={{ textTransform: 'capitalize' }}>{viewJobDetails.status}</div>
+                                        </div>
+                                    </div>
+                                    {viewJobDetails.jobUrl && (
+                                        <div style={{ marginTop: '1.5rem' }}>
+                                            <span className="detail-label">External Reference</span>
+                                            <a href={viewJobDetails.jobUrl} target="_blank" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                Check Application Board <i data-lucide="external-link" size="14"></i>
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {viewJobDetails.notes && (
+                                    <div className="form-section">
+                                        <span className="detail-label">Notes & Observations</span>
+                                        <div className="detail-notes-container" style={{ marginTop: '0.5rem' }}>{viewJobDetails.notes}</div>
+                                    </div>
+                                )}
+
+                                <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                                    {viewJobDetails.resumeData && (
+                                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => downloadResume(viewJobDetails.resumeData, viewJobDetails.resumeName)}>
+                                            <i data-lucide="download" size="18"></i> Download Portfolio/Resume
+                                        </button>
+                                    )}
+                                    <button className="btn btn-secondary" style={{ flex: viewJobDetails.resumeData ? '0.4' : '1' }} onClick={() => setViewJobDetails(null)}>Close Preview</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {jobToDelete && (
+                        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setJobToDelete(null)}>
+                            <div className="modal delete-confirm-content" style={{ width: '400px' }} onClick={e => e.stopPropagation()}>
+                                <div className="delete-icon-large"><i data-lucide="trash-2" size="32"></i></div>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Delete Application?</h3>
+                                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Are you sure you want to remove <strong>{jobToDelete.company}</strong>? This action cannot be undone.</p>
+                                <div className="delete-confirm-actions">
+                                    <button className="btn btn-secondary" onClick={() => setJobToDelete(null)}>Cancel</button>
+                                    <button className="btn btn-danger" onClick={executeDelete}>Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="toast-container">
+                        {toasts.map(toast => (
+                            <div key={toast.id} className={`toast ${toast.type} ${toast.hiding ? 'hiding' : ''}`}>
+                                <i data-lucide={toast.icon} size="20"></i>
+                                <div className="toast-content">{toast.message}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
