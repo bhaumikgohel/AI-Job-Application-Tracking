@@ -93,3 +93,5 @@ vercel --prod
 ---
 
 *Built with ❤️ for improved career productivity.*
+
+**Developed by Bhaumik Gohel**
