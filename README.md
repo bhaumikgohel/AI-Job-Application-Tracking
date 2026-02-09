@@ -1,25 +1,78 @@
-# 👔 CareerFlow - Job Board Assistant
+# 🚀 AI Job Application Tracking System
 
-A premium, local-first dashboard to track your job application journey.
+A premium, local-first Kanban dashboard designed to streamline your job search journey. Track applications, manage interviews, and visualize your progress with a modern, glassmorphism-inspired UI.
 
-## ✨ Features
-- **Kanban Board**: Visualize your application progress across multiple stages.
-- **Detailed Tracking**: Log company, role, application platform, source, resume version, and updates.
-- **Local Persistence**: All data is stored securely in your browser's Local Storage.
-- **Premium Design**: Glassmorphism UI with smooth animations and a modern dark theme.
-- **Zero Dependencies**: Runs directly in your browser using CDN-based React. No build tools required!
+![Project Banner](https://img.shields.io/badge/Status-Active-success) ![License](https://img.shields.io/badge/License-MIT-blue)
 
-## 🚀 How to Use
-1. **Open**: Simply double-click `index.html` to open it in any modern web browser.
-2. **Add**: Click the **+** button at the bottom right to log a new job application.
-3. **Track**: Use the dropdown on each card to move it through different stages (To Research, Applied, Interviewing, Completed).
-4. **Update**: Add notes or progress updates to each entry.
+## ✨ Key Features
 
-## 🛠️ Built With
-- **React 18**: Frontend logic via CDN.
-- **Vanilla CSS3**: Custom design system with glassmorphism.
-- **Lucide Icons**: Beautiful open-source icons.
-- **Babel**: On-the-fly JSX compilation for local development.
+### 📋 Intelligent Kanban Board
+- **Drag & Drop Workflow**: Effortlessly move applications between stages (To Apply, Applied, Interview, Offer, Rejected).
+- **Visual Feedback**: Smooth animations and confetti celebrations when you land a job!
+- **Smart Filtering**: Real-time search by company, role, or platform.
+
+### 🔍 Advanced Tracking & Analytics
+- **Detailed Consoles**: Track salary expectations, follow-up dates, HR contacts, and notes.
+- **Velocity Insights**: Monitor your application rate (apps/week) and conversion metrics.
+- **Resume Management**: Upload and attach specific resume versions to each application.
+
+### 🎨 Premium User Experience
+- **Theme Support**: Seamless Light & Dark mode toggle.
+- **Toast Notifications**: Instant visual feedback for actions like Archiving, Deleting, or Updating.
+- **Responsive Design**: precise layout that works on desktop and mobile.
+
+## 🔄 Application Flow
+
+```mermaid
+graph TD
+    Start([User Opens Dashboard]) --> Dashboard{Dashboard View}
+    
+    Dashboard -->|Click '+' FAB| AddJob[Add New Application]
+    AddJob --> Form{Fill Form}
+    Form -->|Submit| Create[Card Created in 'To Apply']
+    
+    Dashboard -->|Drag Card| Move{Move Card}
+    Move -->|Drop in Column| Update[Update Status]
+    Move -->|Drop in Archive Zone| Archive[Archive Application]
+    Move -->|Drop in Delete Zone| Delete[Delete Application]
+    
+    Update --> Toast[Toast Notification]
+    Archive --> Toast
+    Delete --> Toast
+    
+    Dashboard -->|Click Card| Details[View Details Modal]
+    Details -->|Read/Edit| Notes[Update Notes & Info]
+    
+    Dashboard -->|Search| Filter[Filter Cards via Search Bar]
+    
+    Dashboard -->|Switch View| Analytics[Analytics Dashboard]
+    Analytics --> Stats[View Velocity & Metrics]
+```
+
+## 🚀 Getting Started
+
+No complex build steps required! This project uses a no-build architecture for maximum simplicity.
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/bhaumikgohel/AI-Job-Application-Tracking.git
+   ```
+
+2. **Run the App**
+   - Simply double-click `index.html` to open it in your browser.
+   - Or serve it using a local server like Live Server for VS Code.
+
+3. **Data Privacy**
+   - All data is stored locally in your browser's `localStorage`.
+   - No external database or API keys required.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18 (via CDN)
+- **Styling**: Modern CSS3 (Variables, Flexbox, Grid, Glassmorphism)
+- **Icons**: Lucide Icons
+- **Compiler**: Babel (Standalone)
 
 ---
-*Created with ❤️ by Antigravity*
+
+*Built with ❤️ for improved career productivity.*
