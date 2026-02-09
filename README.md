@@ -66,6 +66,23 @@ No complex build steps required! This project uses a no-build architecture for m
    - All data is stored locally in your browser's `localStorage`.
    - No external database or API keys required.
 
+## ☁️ Deployment
+
+Deploy your own version for free in less than 30 seconds using Vercel.
+
+**Option 1: Vercel Dashboard (Recommended)**
+1. Go to the [Vercel Dashboard](https://vercel.com/new).
+2. Click **"Add New..."** -> **"Project"**.
+3. Import your GitHub repository: `AI-Job-Application-Tracking`.
+4. Click **Deploy**. Vercel will automatically detect the static configuration.
+
+**Option 2: Vercel CLI**
+If you have node installed:
+```bash
+npm i -g vercel
+vercel --prod
+```
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 18 (via CDN)
